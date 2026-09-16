@@ -1,0 +1,1 @@
+(function(){'use strict';document.addEventListener('DOMContentLoaded',function(){var n=0;try{var d=JSON.parse(localStorage.getItem('bayso.local.completed')||'{}');n=Object.keys(d).length;}catch(e){}document.getElementById('traps').textContent=n;document.getElementById('complete').textContent=n===14?14:0;});}());
