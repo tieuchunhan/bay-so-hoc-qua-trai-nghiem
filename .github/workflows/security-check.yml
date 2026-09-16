@@ -1,0 +1,124 @@
+name: Security Check
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  security-check:
+    name: Security Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check repository structure
+        shell: bash
+        run: |
+          set -e
+
+          echo "=== BẪY SỐ - SECURITY CHECK ==="
+
+          test -f index.html
+
+          echo "OK: index.html exists"
+
+          echo "Checking HTML/JS files..."
+
+      - name: Check dangerous input collection
+        shell: bash
+        run: |
+          set -e
+
+          FILES=$(find . -type f \( -name "*.html" -o -name "*.js" \) \
+            -not -path "./.git/*")
+
+          if [ -z "$FILES" ]; then
+            echo "No HTML/JS files found."
+            exit 1
+          fi
+
+          if grep -nEi \
+            '<input[^>]+type=["'\'']password|<input[^>]+name=["'\''](password|otp|cccd)|<form[^>]+action=' \
+            $FILES; then
+
+            echo ""
+            echo "SECURITY CHECK FAILED:"
+            echo "Potential sensitive-data collection detected."
+            exit 1
+          fi
+
+          echo "OK: No password/OTP/CCCD form collection detected."
+
+      - name: Check external network access
+        shell: bash
+        run: |
+          set -e
+
+          FILES=$(find . -type f \( -name "*.html" -o -name "*.js" \) \
+            -not -path "./.git/*")
+
+          if grep -nEi \
+            'fetch[[:space:]]*\(|XMLHttpRequest|navigator\.sendBeacon|WebSocket[[:space:]]*\(' \
+            $FILES; then
+
+            echo ""
+            echo "SECURITY CHECK FAILED:"
+            echo "Potential external network communication detected."
+            exit 1
+          fi
+
+          echo "OK: No external network API detected."
+
+      - name: Check suspicious script references
+        shell: bash
+        run: |
+          set -e
+
+          FILES=$(find . -type f \( -name "*.html" -o -name "*.js" \) \
+            -not -path "./.git/*")
+
+          if grep -nEi \
+            '<script[^>]+src=["'\'']https?://|<iframe[^>]+src=["'\'']https?://' \
+            $FILES; then
+
+            echo ""
+            echo "SECURITY CHECK FAILED:"
+            echo "External script or iframe detected."
+            exit 1
+          fi
+
+          echo "OK: No external script/iframe detected."
+
+      - name: Check for suspicious executable files
+        shell: bash
+        run: |
+          set -e
+
+          FOUND=$(find . \
+            -not -path "./.git/*" \
+            -type f \
+            \( -name "*.exe" -o -name "*.dll" -o -name "*.php" \))
+
+          if [ -n "$FOUND" ]; then
+            echo "SECURITY CHECK FAILED:"
+            echo "$FOUND"
+            exit 1
+          fi
+
+          echo "OK: No suspicious executable/server-side files."
+
+      - name: Security check passed
+        run: |
+          echo "======================================"
+          echo " BẪY SỐ SECURITY CHECK: PASSED"
+          echo "======================================"
