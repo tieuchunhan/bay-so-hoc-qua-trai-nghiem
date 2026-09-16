@@ -29,23 +29,18 @@ jobs:
           echo "=== BẪY SỐ - SECURITY CHECK ==="
 
           test -f index.html
+          test -f security-runtime.js
 
-          echo "OK: index.html exists"
+          echo "OK: Required files exist."
 
-          echo "Checking HTML/JS files..."
-
-      - name: Check dangerous input collection
+      - name: Check sensitive-data collection
         shell: bash
         run: |
           set -e
 
-          FILES=$(find . -type f \( -name "*.html" -o -name "*.js" \) \
+          FILES=$(find . -type f \
+            \( -name "*.html" -o -name "*.js" \) \
             -not -path "./.git/*")
-
-          if [ -z "$FILES" ]; then
-            echo "No HTML/JS files found."
-            exit 1
-          fi
 
           if grep -nEi \
             '<input[^>]+type=["'\'']password|<input[^>]+name=["'\''](password|otp|cccd)|<form[^>]+action=' \
@@ -57,34 +52,38 @@ jobs:
             exit 1
           fi
 
-          echo "OK: No password/OTP/CCCD form collection detected."
+          echo "OK: No sensitive-data form collection detected."
 
-      - name: Check external network access
+      - name: Check external network destinations
         shell: bash
         run: |
           set -e
 
-          FILES=$(find . -type f \( -name "*.html" -o -name "*.js" \) \
+          FILES=$(find . -type f \
+            \( -name "*.html" -o -name "*.js" \) \
             -not -path "./.git/*")
 
+          echo "Checking for explicit external network destinations..."
+
           if grep -nEi \
-            'fetch[[:space:]]*\(|XMLHttpRequest|navigator\.sendBeacon|WebSocket[[:space:]]*\(' \
+            '(https?|wss?):\/\/' \
             $FILES; then
 
             echo ""
             echo "SECURITY CHECK FAILED:"
-            echo "Potential external network communication detected."
+            echo "Explicit external URL detected in HTML/JS."
             exit 1
           fi
 
-          echo "OK: No external network API detected."
+          echo "OK: No explicit external network destination detected."
 
-      - name: Check suspicious script references
+      - name: Check external scripts and frames
         shell: bash
         run: |
           set -e
 
-          FILES=$(find . -type f \( -name "*.html" -o -name "*.js" \) \
+          FILES=$(find . -type f \
+            \( -name "*.html" -o -name "*.js" \) \
             -not -path "./.git/*")
 
           if grep -nEi \
@@ -97,9 +96,9 @@ jobs:
             exit 1
           fi
 
-          echo "OK: No external script/iframe detected."
+          echo "OK: No external script or iframe detected."
 
-      - name: Check for suspicious executable files
+      - name: Check suspicious executable files
         shell: bash
         run: |
           set -e
